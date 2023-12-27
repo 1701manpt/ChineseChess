@@ -4,6 +4,7 @@ import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
+import javafx.scene.image.Image;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.paint.Color;
@@ -11,14 +12,14 @@ import javafx.stage.Stage;
 import personal.chinesechess.Models.ChessBoard;
 import personal.chinesechess.Models.Point;
 
-public class App extends Application {
+import java.io.InputStream;
 
+public class App extends Application {
     private static final int[] BOARD_SIZE = {11, 10};
     private static final int[] MAP_SIZE = {10, 9};
     private static final double CELL_SIZE = 60.0;
     private final ChessBoard board = new ChessBoard();
     private Point selectedPointStart;
-    private GraphicsContext gc;
 
     public static void main(String[] args) {
         launch(args);
@@ -27,29 +28,29 @@ public class App extends Application {
     @Override
     public void start(Stage primaryStage) {
         BorderPane root = new BorderPane();
-        Canvas canvas = new Canvas(CELL_SIZE * BOARD_SIZE[1], CELL_SIZE * BOARD_SIZE[0]);
+        Canvas canvas = new Canvas(position(BOARD_SIZE[1]), position(BOARD_SIZE[0]));
         root.setCenter(canvas);
 
         canvas.setOnMouseClicked(this::handleMouseClick);
 
-        gc = canvas.getGraphicsContext2D();
+        GraphicsContext gc = canvas.getGraphicsContext2D();
         board.initDefault();
         drawChessBoard(gc);
 
-        Scene scene = new Scene(root, CELL_SIZE * BOARD_SIZE[1], CELL_SIZE * BOARD_SIZE[0]);
-        primaryStage.setTitle("Chinese Chess Board");
+        Scene scene = new Scene(root, position(BOARD_SIZE[1]), position(BOARD_SIZE[0]));
+        primaryStage.setTitle("Chinese Chess");
         primaryStage.setScene(scene);
         primaryStage.show();
     }
 
     private void drawChessBoard(GraphicsContext gc) {
         Color borderColor = Color.web("#312109");
-        Color squareColor = Color.web("#fcb13c");
+        Color cellColor = Color.web("#fcb13c");
         Color boardColor = Color.web("#cf5c00");
 
         gc.setStroke(borderColor);
 
-        fillColor(gc, squareColor, boardColor);
+        fillColor(gc, cellColor, boardColor);
         drawRow(gc);
         drawColumn(gc);
         drawPalace(gc);
@@ -76,40 +77,11 @@ public class App extends Application {
 
     private void handleMouseClick(MouseEvent event) {
         try {
-            int col = (int) (event.getX() / position(1));
-            int row = (int) (event.getY() / position(1));
-
-            double a = 0, b = 0;
-
-            // Di chuyển quân cờ đã chọn đến vị trí mới
-            if (event.getX() / position(1) - col <= 0.4 && event.getY() / position(1) - row <= 0.4) {
-                b = position(col);
-                a = position(row);
-            }
-
-            if (event.getX() / position(1) - col >= 0.6 && event.getY() / position(1) - row >= 0.6) {
-                b = position(col + 1);
-                a = position(row + 1);
-            }
-
-            if (event.getX() / position(1) - col >= 0.6 && event.getY() / position(1) - row <= 0.4) {
-                b = position(col + 1);
-                a = position(row);
-            }
-
-            if (event.getX() / position(1) - col <= 0.4 && event.getY() / position(1) - row >= 0.6) {
-                b = position(col);
-                a = position(row + 1);
-            }
-
             Point[][] map = board.getMap();
-            Point point = new Point();
-            point.b = (int) (b / CELL_SIZE) - 1;
-            point.a = (int) (a / CELL_SIZE) - 1;
+            Point point = findPositionClick(event.getX(), event.getY());
             if (selectedPointStart == null) {
-                selectedPointStart = new Point();
-                selectedPointStart.b = point.b;
-                selectedPointStart.a = point.a;
+                selectedPointStart = point;
+                drawChessBoard(((Canvas) event.getSource()).getGraphicsContext2D());
             } else if (selectedPointStart != null) {
                 try {
                     board.move(selectedPointStart, point);
@@ -117,41 +89,83 @@ public class App extends Application {
                     throw new Exception(e.getMessage());
                 } finally {
                     selectedPointStart = null;
+                    drawChessBoard(((Canvas) event.getSource()).getGraphicsContext2D());
                 }
-
-                // Vẽ lại bàn cờ
             }
-            drawChessBoard(((Canvas) event.getSource()).getGraphicsContext2D());
-
         } catch (Exception e) {
             System.err.println(e.getMessage());
         }
     }
 
+    private Point findPositionClick(double xMouse, double yMouse) {
+        int col = (int) (xMouse / position(1));
+        int row = (int) (yMouse / position(1));
+
+        double a = 0, b = 0;
+
+        // góc trên trái
+        if (xMouse / position(1) - col <= 0.4 && yMouse / position(1) - row <= 0.4) {
+            b = position(col);
+            a = position(row);
+        }
+
+        // góc dưới phải
+        if (xMouse / position(1) - col >= 0.6 && yMouse / position(1) - row >= 0.6) {
+            b = position(col + 1);
+            a = position(row + 1);
+        }
+
+        // góc trái dưới
+        if (xMouse / position(1) - col >= 0.6 && yMouse / position(1) - row <= 0.4) {
+            b = position(col + 1);
+            a = position(row);
+        }
+
+        // góc phải trên
+        if (xMouse / position(1) - col <= 0.4 && yMouse / position(1) - row >= 0.6) {
+            b = position(col);
+            a = position(row + 1);
+        }
+
+        Point p = new Point();
+        p.a = (int) (a / CELL_SIZE) - 1;
+        p.b = (int) (b / CELL_SIZE) - 1;
+
+        return p;
+    }
+
     // vẽ quân cờ
     private void drawPiece(GraphicsContext gc, Point point, boolean isSelected) {
         Color pieceColor = Color.web("#fedba6");
-        double n = (double) 4 / 10;
-        double i = (double) 4 / 5;
+
+        double i = 1;
+        double n = i * 1 / 2;
         double x = position(point.b + 1) - position(n);
         double y = position(point.a + 1) - position(n);
         double d = position(i);
 
         if (isSelected) {
-            gc.setFill(Color.GRAY);
-        } else {
+            double i1 = 0.9;
+            double n1 = i1 * 1 / 2;
+            double x1 = position(point.b + 1) - position(n1);
+            double y1 = position(point.a + 1) - position(n1);
+            double d1 = position(i1);
             gc.setFill(pieceColor);
+            gc.fillOval(x1, y1, d1, d1);
         }
 
-        gc.fillOval(x, y, d, d);
-
+        String side = "";
         if (point.chessPiece.getSide() == 1) {
-            gc.setFill(Color.BLACK);
+            side = "black";
         } else {
-            gc.setFill(Color.RED);
+            side = "red";
         }
 
-        gc.fillText(point.chessPiece.getNameChinese(), x, y + position(n));
+        String path = "/personal/chinesechess/Images/Pieces/" + side + "/" + side + "_" + point.chessPiece.getNameChinese().toLowerCase() + ".png";
+        InputStream stream = getClass().getResourceAsStream(path);
+        Image chessPieceImage = new Image(stream);
+
+        gc.drawImage(chessPieceImage, x, y, d, d);
     }
 
     // tô màu cho bàn cờ

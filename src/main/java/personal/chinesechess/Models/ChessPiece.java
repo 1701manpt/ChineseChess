@@ -115,31 +115,31 @@ public class ChessPiece {
 
     public String getNameChinese() {
         if (this instanceof General) {
-            return "Tướng";
+            return "General";
         }
 
         if (this instanceof Advisor) {
-            return "Sĩ";
+            return "Advisor";
         }
 
         if (this instanceof Elephant) {
-            return "Tượng";
+            return "Elephant";
         }
 
         if (this instanceof Horse) {
-            return "Mã";
+            return "Horse";
         }
 
         if (this instanceof Chariot) {
-            return "Xe";
+            return "Chariot";
         }
 
         if (this instanceof Cannon) {
-            return "Pháo";
+            return "Cannon";
         }
 
         if (this instanceof Soldier) {
-            return "Tốt";
+            return "Soldier";
         }
 
         return "";
